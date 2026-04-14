@@ -1,79 +1,79 @@
-# Team 3 CoT Data Pipeline
+# CoT Pipeline
 
 ## Project Overview
 
-This project contains a generalized chain-of-thought (CoT) generation pipeline for question-answer datasets.
+This repository contains a generalized chain-of-thought (CoT) data generation pipeline for question-answer datasets.
 
 The pipeline:
-- Loads input data from CSV or Parquet.
+- Loads CSV or Parquet datasets.
 - Maps dataset columns to canonical fields.
-- Requires both `question` and `ground_truth` (or `answer`) columns.
-- Optionally enriches metadata (`domain`, `task`, `language`) using an LLM mapper model.
-- Generates answers with rejection sampling.
-- Validates generated answers against ground truth.
-- Saves outputs in Parquet format.
+- Requires both `question` and `ground_truth` (or `answer`) as input.
+- Optionally enriches metadata (`domain`, `task`, `language`) with an LLM mapper model.
+- Generates model responses with rejection sampling.
+- Verifies generated answers against ground truth.
+- Saves output in Parquet format.
 
-Supported domains include:
+Supported domains:
 - Chemistry
 - Math
 - Physics
 - Biology
 - Language
 
-## Folder Structure (Team_3)
+## Repository Structure
 
-- `pipeline.py`: Main pipeline script.
-- `config.yaml`: Model and pipeline configuration.
+- `pipeline.py`: Main pipeline entry point.
+- `config.yaml`: Model endpoints and pipeline settings.
 - `requirements.txt`: Python dependencies.
-- `Generated_Dataset/`: Default output location for run artifacts.
+- `Datasets/`: Input datasets (includes `demo_dataset.parquet`).
+- `Generated_Dataset/`: Output directory for generated results.
 
-## Dependencies
+## Quick Start
 
-Dependencies are listed in `requirements.txt`:
-- pandas
-- pyarrow
-- requests
-- PyYAML
-- urllib3
-
-## Installation
-
-### 1. Move to workspace root
+### 1. Clone the repository
 
 ```bash
-cd /projects/data/datasets/code_post_training_data
+git clone https://github.com/piyushkeshri8912/CoT-Pipeline.git
+cd CoT-Pipeline
 ```
 
-### 2. (Recommended) Create and activate a virtual environment
+### 2. Create and activate a Python environment
+
+Using venv:
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-If you use conda, you can activate your environment instead:
+Using conda (optional):
 
 ```bash
-conda activate base
+conda create -n cot-pipeline python=3.10 -y
+conda activate cot-pipeline
 ```
 
 ### 3. Install dependencies
 
 ```bash
-pip install -r Team_3/requirements.txt
+pip install -r requirements.txt
 ```
 
-## Configuration
+### 4. Configure model endpoints
 
-Edit `Team_3/config.yaml` to set:
-- `mapper_model`: used for schema mapping and metadata enrichment.
-- `model`: used for CoT generation.
-- `pipeline.output_dir`: default is `Team_3/Generated_Dataset`.
-- `pipeline.max_workers`, `max_attempts`, `timeout_s`, etc.
+Edit `config.yaml` and set valid values for:
+- `mapper_model.url`, `mapper_model.model`, `mapper_model.api_key`
+- `model.url`, `model.model`, `model.api_key`
+
+Also review:
+- `pipeline.output_dir` (default: `Generated_Dataset`)
+- `pipeline.max_workers`
+- `pipeline.max_attempts`
+- `pipeline.timeout_s`
 
 ## Input Requirements
 
-The input file must be CSV or Parquet and contain:
+Input file must be `.csv` or `.parquet` with:
 - `question` (required)
 - `ground_truth` or `answer` (required)
 
@@ -83,79 +83,72 @@ Optional columns:
 - `source`
 - `language`
 
-If your column names are different, pass explicit mapping with `--column-map`.
+If your column names differ, pass explicit mapping with `--column-map`.
 
-## Running the Pipeline
+## Run the Pipeline
 
-### Basic run
+### Demo run (recommended first)
 
 ```bash
-python Team_3/pipeline.py <input_file> --config Team_3/config.yaml
+python pipeline.py Datasets/demo_dataset.parquet --config config.yaml --dry-run
 ```
 
-Demo dataset example:
+### Full run
 
 ```bash
-python Team_3/pipeline.py Team_3/Datasets/demo_dataset.parquet --config Team_3/config.yaml
+python pipeline.py Datasets/demo_dataset.parquet --config config.yaml
 ```
 
-Dry-run with demo dataset:
+### Generic run
 
 ```bash
-python Team_3/pipeline.py Team_3/Datasets/demo_dataset.parquet --config Team_3/config.yaml --dry-run
+python pipeline.py <input_file> --config config.yaml
 ```
 
-### Run with explicit column mapping
+### With explicit column mapping
 
 ```bash
-python Team_3/pipeline.py <input_file> \
-  --config Team_3/config.yaml \
+python pipeline.py <input_file> \
+  --config config.yaml \
   --column-map question=<question_col> answer=<answer_col>
 ```
 
-Note: `answer` is automatically mapped to `ground_truth`.
-
-### Dry run (no model calls)
+### Useful options
 
 ```bash
-python Team_3/pipeline.py <input_file> --config Team_3/config.yaml --dry-run
-```
+# Process first 100 rows
+python pipeline.py <input_file> --config config.yaml --head 100
 
-### Limit rows for quick testing
+# Use custom worker count
+python pipeline.py <input_file> --config config.yaml --workers 20
 
-```bash
-python Team_3/pipeline.py <input_file> --config Team_3/config.yaml --head 100
-```
-
-### Control parallelism
-
-```bash
-python Team_3/pipeline.py <input_file> --config Team_3/config.yaml --workers 20
-```
-
-### Filter by domain
-
-```bash
-python Team_3/pipeline.py <input_file> \
-  --config Team_3/config.yaml \
-  --domains Math Physics Biology
+# Restrict to selected domains
+python pipeline.py <input_file> --config config.yaml --domains Math Physics Biology
 ```
 
 ## Output
 
-For each run, outputs are written under:
+Each run creates files under:
 
-`Team_3/Generated_Dataset/<dataset_key>_<model_name>/`
+`Generated_Dataset/<dataset_key>_<model_name>/`
 
-Generated files:
-- `cot_output.parquet`: raw per-row pipeline results (accepted and rejected).
-- `<dataset_key>.parquet`: final accepted standardized dataset.
-- `rejection_log.json`: summary of rejected rows.
+Artifacts:
+- `cot_output.parquet`: Row-wise raw pipeline records (accepted + rejected).
+- `<dataset_key>.parquet`: Final accepted standardized dataset.
+- `rejection_log.json`: Rejected-row summary.
 
+## Dependencies
+
+Dependencies are managed through `requirements.txt`:
+- pandas
+- pyarrow
+- requests
+- PyYAML
+- urllib3
 
 ## Troubleshooting
 
-- If required columns are missing, provide explicit `--column-map`.
-- If API calls fail, verify model URL/API key in `config.yaml`.
-- If Parquet writing fails, ensure `pyarrow` is installed.
-- Use `--dry-run` to validate mapping and preprocessing before full execution.
+- Missing required columns: pass `--column-map`.
+- API errors: verify URL/model/api key values in `config.yaml`.
+- Parquet write issues: ensure `pyarrow` is installed.
+- First-time checks: run with `--dry-run` before full generation.
