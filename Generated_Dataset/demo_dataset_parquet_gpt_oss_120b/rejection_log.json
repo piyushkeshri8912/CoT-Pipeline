@@ -1,0 +1,12 @@
+{
+  "model": "gpt_oss_120b",
+  "dataset": "demo_dataset_parquet",
+  "total": 40,
+  "accepted": 37,
+  "rejected": 3,
+  "rejected_records": [
+    9,
+    22,
+    31
+  ]
+}
