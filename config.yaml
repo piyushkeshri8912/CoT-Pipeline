@@ -5,16 +5,16 @@
 # Model used for question metadata classification (domain/language)
 mapper_model:
   name: gpt_oss_120b
-  url: http://172.17.99.11:30000/v1/chat/completions
+  url: [URL]
   model: openai/gpt-oss-120b
-  api_key: AVTXOTWZab9v8WExZMNcGXdCFPCmon4LQPMWP6iS32w2
+  api_key: [API_KEY]
 
 # Teacher model for CoT generation (gpt-oss-120b)
 model:
   name: gpt_oss_120b
-  url: http://172.17.99.11:30000/v1/chat/completions
+  url: [URL]
   model: openai/gpt-oss-120b
-  api_key: AVTXOTWZab9v8WExZMNcGXdCFPCmon4LQPMWP6iS32w2
+  api_key: [API_KEY]
 
 # Pipeline defaults
 pipeline:
