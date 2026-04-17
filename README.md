@@ -1,43 +1,39 @@
-# CoT Pipeline
+# CoT + Segmentation Pipeline
 
-## Project Overview
+## Overview
 
-This repository contains a generalized chain-of-thought (CoT) data generation pipeline for question-answer datasets.
+This repository contains two connected pipelines:
 
-The pipeline:
-- Loads CSV or Parquet datasets.
-- Maps dataset columns to canonical fields.
-- Requires both `question` and `ground_truth` (or `answer`) as input.
-- Optionally enriches metadata (`domain`, `task`, `language`) with an LLM mapper model.
-- Generates model responses with rejection sampling.
-- Verifies generated answers against ground truth.
-- Saves output in Parquet format.
+1. `segmentation_pipeline.py` (Step 2 from `task.md`)
+- Reads raw OCR text from `OCR_output/`
+- Segments text into `{question, answer}` pairs
+- Writes per-file segmented outputs and a merged segmented dataset
 
-Supported domains:
-- Chemistry
-- Math
-- Physics
-- Biology
-- Language
+2. `pipeline.py` (teacher generation + verification)
+- Takes question + ground truth datasets
+- Generates verified reasoning traces and final outputs
 
 ## Repository Structure
 
-- `pipeline.py`: Main pipeline entry point.
-- `config.yaml`: Model endpoints and pipeline settings.
-- `requirements.txt`: Python dependencies.
-- `Datasets/`: Input datasets (includes `demo_dataset.parquet`).
-- `Generated_Dataset/`: Output directory for generated results.
+- `segmentation_pipeline.py`: Main Step-2 segmentation pipeline
+- `pipeline.py`: CoT generation/verification pipeline
+- `config.yaml`: Model endpoint configuration
+- `requirements.txt`: Python dependencies
+- `OCR_output/`: Raw OCR extracted text/parquet inputs
+- `segmented_output/`: Step-2 segmentation outputs
+- `Datasets/`: Training/eval datasets for `pipeline.py`
+- `Generated_Dataset/`: Final CoT outputs
 
-## Quick Start
+## Quick Start (Fresh Clone)
 
-### 1. Clone the repository
+### 1. Clone repository
 
 ```bash
 git clone https://github.com/piyushkeshri8912/CoT-Pipeline.git
 cd CoT-Pipeline
 ```
 
-### 2. Create and activate a Python environment
+### 2. Create Python environment
 
 Using venv:
 
@@ -61,33 +57,47 @@ pip install -r requirements.txt
 
 ### 4. Configure model endpoints
 
-Edit `config.yaml` and set valid values for:
-- `mapper_model.url`, `mapper_model.model`, `mapper_model.api_key`
-- `model.url`, `model.model`, `model.api_key`
+Edit `config.yaml` and set your model values:
+- `model.url`
+- `model.model`
+- `model.api_key`
 
-Also review:
-- `pipeline.output_dir` (default: `Generated_Dataset`)
-- `pipeline.max_workers`
-- `pipeline.max_attempts`
-- `pipeline.timeout_s`
+If you use `pipeline.py`, also set:
+- `mapper_model.url`
+- `mapper_model.model`
+- `mapper_model.api_key`
 
-## Input Requirements
+## Step 2: Segmentation Pipeline (From OCR Output)
 
-Input file must be `.csv` or `.parquet` with:
-- `question` (required)
-- `ground_truth` or `answer` (required)
+### Demo input included in repo
 
-Optional columns:
-- `domain`
-- `task`
-- `source`
-- `language`
+Demo OCR sample:
+- `OCR_output/demo_ocr_output.parquet`
 
-If your column names differ, pass explicit mapping with `--column-map`.
+Run segmentation on demo input:
 
-## Run the Pipeline
+```bash
+python segmentation_pipeline.py \
+  --step segment \
+  --input OCR_output/demo_ocr_output.parquet \
+  --output-dir segmented_output/demo_ocr_output_segemented
+```
 
-### Demo run (recommended first)
+Run segmentation on all OCR files:
+
+```bash
+python segmentation_pipeline.py --step segment --input-dir OCR_output --workers 8
+```
+
+### Step-2 output files
+
+For each run, outputs include:
+- per-file segmented parquet/csv
+- merged segmented dataset: `segmented_qa.parquet`
+
+## CoT Pipeline (`pipeline.py`)
+
+### Demo run
 
 ```bash
 python pipeline.py Datasets/demo_dataset.parquet --config config.yaml --dry-run
@@ -105,7 +115,7 @@ python pipeline.py Datasets/demo_dataset.parquet --config config.yaml
 python pipeline.py <input_file> --config config.yaml
 ```
 
-### With explicit column mapping
+### Explicit column mapping
 
 ```bash
 python pipeline.py <input_file> \
@@ -113,42 +123,20 @@ python pipeline.py <input_file> \
   --column-map question=<question_col> answer=<answer_col>
 ```
 
-### Useful options
-
-```bash
-# Process first 100 rows
-python pipeline.py <input_file> --config config.yaml --head 100
-
-# Use custom worker count
-python pipeline.py <input_file> --config config.yaml --workers 20
-
-# Restrict to selected domains
-python pipeline.py <input_file> --config config.yaml --domains Math Physics Biology
-```
-
-## Output
-
-Each run creates files under:
-
-`Generated_Dataset/<dataset_key>_<model_name>/`
-
-Artifacts:
-- `cot_output.parquet`: Row-wise raw pipeline records (accepted + rejected).
-- `<dataset_key>.parquet`: Final accepted standardized dataset.
-- `rejection_log.json`: Rejected-row summary.
-
 ## Dependencies
 
-Dependencies are managed through `requirements.txt`:
+Dependencies in `requirements.txt` include:
 - pandas
 - pyarrow
 - requests
 - PyYAML
 - urllib3
+- openai
+- PyMuPDF
 
 ## Troubleshooting
 
-- Missing required columns: pass `--column-map`.
-- API errors: verify URL/model/api key values in `config.yaml`.
-- Parquet write issues: ensure `pyarrow` is installed.
-- First-time checks: run with `--dry-run` before full generation.
+- Missing required input columns in `pipeline.py`: use `--column-map`.
+- API failures: verify URL/model/api key values in `config.yaml`.
+- PDF segmentation failures: ensure `PyMuPDF` is installed.
+- First test: run segmentation on demo input before full dataset runs.
